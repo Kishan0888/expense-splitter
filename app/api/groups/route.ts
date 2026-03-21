@@ -36,18 +36,23 @@ export async function POST(req: NextRequest) {
   `;
   await sql`INSERT INTO group_members (group_id, user_id) VALUES (${group.id}, ${user.userId})`;
 
+  const notFound: string[] = [];
   if (memberEmails?.length) {
     for (const email of memberEmails) {
-      const [member] = await sql`SELECT id FROM users WHERE email = ${email}`;
+      const trimmed = email.trim();
+      if (!trimmed) continue;
+      const [member] = await sql`SELECT id FROM users WHERE email = ${trimmed}`;
       if (member) {
         await sql`
           INSERT INTO group_members (group_id, user_id)
           VALUES (${group.id}, ${member.id})
           ON CONFLICT DO NOTHING
         `;
+      } else {
+        notFound.push(trimmed);
       }
     }
   }
 
-  return NextResponse.json(group, { status: 201 });
+  return NextResponse.json({ ...group, notFound }, { status: 201 });
 }

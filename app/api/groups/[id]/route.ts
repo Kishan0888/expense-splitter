@@ -18,13 +18,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
   const members = await sql`
-    SELECT u.id, u.name, u.email FROM group_members gm
-    JOIN users u ON u.id = gm.user_id WHERE gm.group_id = ${groupId}
+    SELECT u.id, u.name, u.email
+    FROM group_members gm
+    JOIN users u ON u.id = gm.user_id
+    WHERE gm.group_id = ${groupId}
+    ORDER BY gm.joined_at ASC
   `;
+
   const expenses = await sql`
-    SELECT e.*, u.name as paid_by_name FROM expenses e
+    SELECT e.id, e.title, e.amount, e.paid_by, e.split_type, e.created_at,
+           u.name as paid_by_name
+    FROM expenses e
     JOIN users u ON u.id = e.paid_by
-    WHERE e.group_id = ${groupId} ORDER BY e.created_at DESC
+    WHERE e.group_id = ${groupId}
+    ORDER BY e.created_at DESC
   `;
 
   return NextResponse.json({ ...group, members, expenses });
