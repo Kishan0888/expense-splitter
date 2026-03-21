@@ -42,8 +42,8 @@ function GroupDetail() {
     setSyncing(true);
     try {
       const [gRes, bRes] = await Promise.all([
-        fetch(`/api/groups/${gid}`, { headers: { Authorization: `Bearer ${tok}` } }),
-        fetch(`/api/groups/${gid}/balances`, { headers: { Authorization: `Bearer ${tok}` } }),
+        fetch(`/api/groups/${gid}?t=${Date.now()}`, { headers: { Authorization: `Bearer ${tok}`, 'Cache-Control': 'no-cache' } }),
+        fetch(`/api/groups/${gid}/balances?t=${Date.now()}`, { headers: { Authorization: `Bearer ${tok}`, 'Cache-Control': 'no-cache' } }),
       ]);
       if (!gRes.ok || !bRes.ok) {
         console.error('Fetch failed', gRes.status, bRes.status);

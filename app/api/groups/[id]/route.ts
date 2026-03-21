@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = getAuthUser(req);
@@ -15,9 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     `;
     if (!memberCheck.length) return NextResponse.json({ error: 'Not a member' }, { status: 403 });
 
-    const groups = await sql`
-      SELECT id, name, description, created_by, created_at FROM groups WHERE id = ${groupId}
-    `;
+    const groups = await sql`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ${groupId}`;
     if (!groups.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const group = groups[0];
 
@@ -29,15 +30,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       ORDER BY gm.joined_at ASC
     `;
 
-    // Use LEFT JOIN so expenses without splits still show
     const expenses = await sql`
       SELECT DISTINCT
-        e.id,
-        e.title,
-        e.amount::float AS amount,
-        e.paid_by,
-        e.split_type,
-        e.created_at,
+        e.id, e.title, e.amount::float AS amount,
+        e.paid_by, e.split_type, e.created_at,
         u.name AS paid_by_name
       FROM expenses e
       JOIN users u ON u.id = e.paid_by
@@ -45,16 +41,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       ORDER BY e.created_at DESC
     `;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       id: Number(group.id),
       name: String(group.name),
       description: String(group.description || ''),
       created_by: Number(group.created_by),
       created_at: String(group.created_at),
       members: members.map((m: Record<string, unknown>) => ({
-        id: Number(m.id),
-        name: String(m.name),
-        email: String(m.email),
+        id: Number(m.id), name: String(m.name), email: String(m.email),
       })),
       expenses: expenses.map((e: Record<string, unknown>) => ({
         id: Number(e.id),
@@ -66,6 +60,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         created_at: String(e.created_at),
       })),
     });
+
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    return response;
   } catch (err) {
     console.error('GET /groups/[id] error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
