@@ -9,7 +9,7 @@ export default function Home() {
       <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1100, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Zap size={18} color="var(--green)" strokeWidth={2.5} />
-          <span style={{ fontWeight: 800, fontSize: 16 }}>SplitEase</span>
+          <span style={{ fontWeight: 800, fontSize: 16 }}>SplitEase by Kishan</span>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn-ghost" onClick={() => router.push('/login')}>Login</button>

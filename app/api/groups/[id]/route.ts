@@ -31,10 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     `;
 
     const expenses = await sql`
-      SELECT DISTINCT
-        e.id, e.title, e.amount::float AS amount,
-        e.paid_by, e.split_type, e.created_at,
-        u.name AS paid_by_name
+      SELECT DISTINCT e.id, e.title, e.amount::float AS amount,
+        e.paid_by, e.split_type, e.created_at, u.name AS paid_by_name
       FROM expenses e
       JOIN users u ON u.id = e.paid_by
       WHERE e.group_id = ${groupId}
@@ -51,21 +49,48 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         id: Number(m.id), name: String(m.name), email: String(m.email),
       })),
       expenses: expenses.map((e: Record<string, unknown>) => ({
-        id: Number(e.id),
-        title: String(e.title),
-        amount: Number(e.amount),
-        paid_by: Number(e.paid_by),
-        paid_by_name: String(e.paid_by_name),
-        split_type: String(e.split_type),
-        created_at: String(e.created_at),
+        id: Number(e.id), title: String(e.title), amount: Number(e.amount),
+        paid_by: Number(e.paid_by), paid_by_name: String(e.paid_by_name),
+        split_type: String(e.split_type), created_at: String(e.created_at),
       })),
     });
-
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    response.headers.set('Pragma', 'no-cache');
     return response;
   } catch (err) {
     console.error('GET /groups/[id] error:', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const user = getAuthUser(req);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const sql = getDb();
+    const groupId = Number(params.id);
+
+    // Only the group creator can delete it
+    const [group] = await sql`SELECT created_by FROM groups WHERE id = ${groupId}`;
+    if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+    if (Number(group.created_by) !== user.userId) {
+      return NextResponse.json({ error: 'Only the group creator can delete this group' }, { status: 403 });
+    }
+
+    // Delete in correct order due to foreign keys
+    await sql`DELETE FROM settlements WHERE group_id = ${groupId}`;
+    await sql`
+      DELETE FROM expense_splits WHERE expense_id IN (
+        SELECT id FROM expenses WHERE group_id = ${groupId}
+      )
+    `;
+    await sql`DELETE FROM expenses WHERE group_id = ${groupId}`;
+    await sql`DELETE FROM group_members WHERE group_id = ${groupId}`;
+    await sql`DELETE FROM groups WHERE id = ${groupId}`;
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /groups/[id] error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

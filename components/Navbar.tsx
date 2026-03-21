@@ -14,7 +14,7 @@ export default function Navbar() {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>
           <Zap size={18} color="var(--green)" strokeWidth={2.5} />
-          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.5px' }}>SplitEase</span>
+          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.5px' }}>SplitEase by Kishan</span>
         </div>
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/components/AuthContext';
 import Navbar from '@/components/Navbar';
-import { Plus, ArrowRight, CheckCircle, Receipt, TrendingDown, X, ChevronLeft, Users, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, ArrowRight, CheckCircle, Receipt, TrendingDown, X, ChevronLeft, Users, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 
 interface Member  { id: number; name: string; email: string; }
 interface Expense { id: number; title: string; amount: number; paid_by: number; paid_by_name: string; created_at: string; }
@@ -32,6 +32,8 @@ function GroupDetail() {
   const [memErr,   setMemErr] = useState('');
   const [memOk,    setMemOk]  = useState('');
   const [syncing,  setSyncing]= useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting,  setDeleting] = useState(false);
   const [lastSync, setLastSync]= useState('');
   const pollTimer = useRef<NodeJS.Timeout|null>(null);
 
@@ -129,6 +131,21 @@ function GroupDetail() {
     await fetchData();
   }
 
+  async function deleteGroup() {
+    setDeleting(true);
+    try {
+      const tok = localStorage.getItem('token')!;
+      const res = await fetch(`/api/groups/${gid}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete group');
+      router.push('/dashboard');
+    } catch(e: unknown) { alert(e instanceof Error ? e.message : 'Failed to delete'); }
+    finally { setDeleting(false); setShowDelete(false); }
+  }
+
   const mc = group?.members.length ?? 0;
   const me = balances.find(b => b.userId === user?.id);
   const perPerson = expAmt && mc > 0 ? (Number(expAmt) / mc).toFixed(2) : '0.00';
@@ -165,6 +182,10 @@ function GroupDetail() {
             }
             <button className="btn-ghost" style={{ padding:'5px 10px', fontSize:12 }} onClick={fetchData}>
               <RefreshCw size={12}/> Refresh
+            </button>
+            <button onClick={() => setShowDelete(true)}
+              style={{ padding:'5px 10px', fontSize:12, background:'transparent', border:'1px solid rgba(239,68,68,0.4)', borderRadius:8, color:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+              <Trash2 size={12}/> Delete group
             </button>
           </div>
         </div>
@@ -410,6 +431,26 @@ function GroupDetail() {
             <div style={{ display:'flex', gap:12 }}>
               <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setSettling(null)}>Cancel</button>
               <button className="btn-primary" style={{ flex:1, justifyContent:'center' }} onClick={() => doSettle(settling)}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* DELETE GROUP MODAL */}
+      {showDelete && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:20 }}>
+          <div className="card animate-in" style={{ width:'100%', maxWidth:360, textAlign:'center', padding:'36px 28px' }}>
+            <Trash2 size={44} color="#f87171" style={{ margin:'0 auto 18px' }}/>
+            <h2 style={{ fontWeight:800, fontSize:20, marginBottom:10 }}>Delete group?</h2>
+            <p style={{ color:'var(--muted)', fontSize:14, marginBottom:6 }}>
+              This will permanently delete <strong style={{ color:'var(--text)' }}>{group?.name}</strong> and all its expenses.
+            </p>
+            <p style={{ color:'#f87171', fontSize:13, marginBottom:24 }}>This action cannot be undone.</p>
+            <div style={{ display:'flex', gap:12 }}>
+              <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }} onClick={() => setShowDelete(false)}>Cancel</button>
+              <button disabled={deleting} onClick={deleteGroup}
+                style={{ flex:1, justifyContent:'center', background:'#dc2626', color:'#fff', border:'none', borderRadius:8, padding:'10px', fontFamily:'var(--font-syne)', fontWeight:700, fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </button>
             </div>
           </div>
         </div>
