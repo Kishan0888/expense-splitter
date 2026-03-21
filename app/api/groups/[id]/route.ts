@@ -26,8 +26,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   `;
 
   const expenses = await sql`
-    SELECT e.id, e.title, e.amount, e.paid_by, e.split_type, e.created_at,
-           u.name as paid_by_name
+    SELECT 
+      e.id,
+      e.title,
+      e.amount,
+      e.paid_by,
+      e.split_type,
+      e.created_at,
+      u.name as paid_by_name
     FROM expenses e
     JOIN users u ON u.id = e.paid_by
     WHERE e.group_id = ${groupId}

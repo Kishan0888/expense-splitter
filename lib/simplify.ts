@@ -2,7 +2,7 @@ export interface Balance {
   userId: number;
   name: string;
   email: string;
-  netBalance: number; // positive = is owed money, negative = owes money
+  netBalance: number;
 }
 
 export interface Transaction {
@@ -15,21 +15,6 @@ export interface Transaction {
   amount: number;
 }
 
-/**
- * Debt Simplification Algorithm — the core interview talking point.
- *
- * Approach: Greedy net balance matching.
- * 1. Compute net balance for each person (total paid - total owed).
- * 2. Separate into creditors (net > 0) and debtors (net < 0).
- * 3. Sort both descending by absolute value.
- * 4. Greedily match largest debtor to largest creditor:
- *    - Transfer min(|debt|, credit), update both balances.
- *    - If either reaches 0, remove from the list.
- * 5. Repeat until all settled.
- *
- * Result: At most N-1 transactions for N people — optimal minimum.
- * Reduces transactions by ~60% on average for real groups.
- */
 export function simplifyDebts(balances: Balance[]): Transaction[] {
   const creditors: { b: Balance; amount: number }[] = [];
   const debtors:   { b: Balance; amount: number }[] = [];
@@ -85,16 +70,19 @@ export async function computeGroupBalances(
     balanceMap[m.id] = { userId: m.id, name: m.name, email: m.email, netBalance: 0 };
   }
 
-  const expenses = await sql`
+  const splits = await sql`
     SELECT e.paid_by, es.user_id, es.amount
     FROM expenses e
     JOIN expense_splits es ON es.expense_id = e.id
     WHERE e.group_id = ${groupId}
   `;
 
-  for (const row of expenses) {
-    if (balanceMap[row.paid_by]) balanceMap[row.paid_by].netBalance += Number(row.amount);
-    if (balanceMap[row.user_id]) balanceMap[row.user_id].netBalance -= Number(row.amount);
+  for (const row of splits) {
+    const paidBy = Number(row.paid_by);
+    const userId = Number(row.user_id);
+    const amount = Number(row.amount);
+    if (balanceMap[paidBy] !== undefined) balanceMap[paidBy].netBalance += amount;
+    if (balanceMap[userId] !== undefined)  balanceMap[userId].netBalance  -= amount;
   }
 
   const settlements = await sql`
@@ -104,8 +92,11 @@ export async function computeGroupBalances(
   `;
 
   for (const s of settlements) {
-    if (balanceMap[s.paid_by]) balanceMap[s.paid_by].netBalance -= Number(s.amount);
-    if (balanceMap[s.paid_to]) balanceMap[s.paid_to].netBalance += Number(s.amount);
+    const paidBy = Number(s.paid_by);
+    const paidTo = Number(s.paid_to);
+    const amount = Number(s.amount);
+    if (balanceMap[paidBy] !== undefined) balanceMap[paidBy].netBalance -= amount;
+    if (balanceMap[paidTo] !== undefined) balanceMap[paidTo].netBalance += amount;
   }
 
   return Object.values(balanceMap);

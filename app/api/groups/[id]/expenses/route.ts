@@ -9,68 +9,72 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const sql = getDb();
   const groupId = Number(params.id);
-  const { title, amount, splitType = 'equal', customSplits } = await req.json();
+  const body = await req.json();
+  const { title, amount, splitType = 'equal' } = body;
 
-  if (!title || !amount) return NextResponse.json({ error: 'Title and amount required' }, { status: 400 });
+  if (!title || !amount) {
+    return NextResponse.json({ error: 'Title and amount required' }, { status: 400 });
+  }
 
   const members = await sql`
     SELECT u.id, u.name, u.email FROM group_members gm
-    JOIN users u ON u.id = gm.user_id WHERE gm.group_id = ${groupId}
+    JOIN users u ON u.id = gm.user_id
+    WHERE gm.group_id = ${groupId}
   `;
-  if (!members.length) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+
+  if (!members.length) {
+    return NextResponse.json({ error: 'Group not found or no members' }, { status: 404 });
+  }
+
+  const numAmount = Number(amount);
+  const memberCount = members.length;
+  const sharePerPerson = Math.round((numAmount / memberCount) * 100) / 100;
 
   const [expense] = await sql`
     INSERT INTO expenses (group_id, paid_by, title, amount, split_type)
-    VALUES (${groupId}, ${user.userId}, ${title}, ${amount}, ${splitType})
-    RETURNING id
+    VALUES (${groupId}, ${user.userId}, ${title}, ${numAmount}, ${splitType})
+    RETURNING id, title, amount, paid_by, split_type, created_at
   `;
 
-  const splits: { userId: number; amount: number }[] = [];
-  if (splitType === 'equal') {
-    const share = amount / members.length;
-    for (const m of members) splits.push({ userId: m.id, amount: Math.round(share * 100) / 100 });
-  } else if (splitType === 'custom' && customSplits) {
-    for (const cs of customSplits) splits.push({ userId: cs.userId, amount: cs.amount });
-  }
-
-  for (const s of splits) {
-    await sql`INSERT INTO expense_splits (expense_id, user_id, amount) VALUES (${expense.id}, ${s.userId}, ${s.amount})`;
-  }
-
-  const payer = members.find((m: {id: number}) => m.id === user.userId);
   for (const m of members) {
-    if (m.id === user.userId) continue;
-    const share = splits.find((s) => s.userId === m.id);
-    if (share) {
-      await sendExpenseNotification({
-        toEmail:      m.email,
-        toName:       m.name,
-        groupName:    (await sql`SELECT name FROM groups WHERE id = ${groupId}`)[0]?.name || 'Group',
-        expenseTitle: title,
-        totalAmount:  amount,
-        yourShare:    share.amount,
-        paidByName:   payer?.name || 'Someone',
-      }).catch(() => {});
-    }
+    await sql`
+      INSERT INTO expense_splits (expense_id, user_id, amount)
+      VALUES (${expense.id}, ${m.id}, ${sharePerPerson})
+    `;
   }
 
-  return NextResponse.json({ id: expense.id, splits }, { status: 201 });
+  const payer = members.find((m: { id: number }) => Number(m.id) === user.userId);
+  for (const m of members) {
+    if (Number(m.id) === user.userId) continue;
+    await sendExpenseNotification({
+      toEmail:      m.email,
+      toName:       m.name,
+      groupName:    (await sql`SELECT name FROM groups WHERE id = ${groupId}`)[0]?.name || 'Group',
+      expenseTitle: title,
+      totalAmount:  numAmount,
+      yourShare:    sharePerPerson,
+      paidByName:   payer?.name || 'Someone',
+    }).catch(() => {});
+  }
+
+  return NextResponse.json({ success: true, expense }, { status: 201 });
 }
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const user = getAuthUser(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const sql = getDb();
+  const groupId = Number(params.id);
+
   const expenses = await sql`
-    SELECT e.*, u.name as paid_by_name,
-      json_agg(json_build_object('userId', es.user_id, 'amount', es.amount, 'name', u2.name)) as splits
+    SELECT e.id, e.title, e.amount, e.paid_by, e.split_type, e.created_at,
+           u.name as paid_by_name
     FROM expenses e
     JOIN users u ON u.id = e.paid_by
-    JOIN expense_splits es ON es.expense_id = e.id
-    JOIN users u2 ON u2.id = es.user_id
-    WHERE e.group_id = ${Number(params.id)}
-    GROUP BY e.id, u.name
+    WHERE e.group_id = ${groupId}
     ORDER BY e.created_at DESC
   `;
+
   return NextResponse.json(expenses);
 }
