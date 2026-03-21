@@ -12,26 +12,43 @@ interface AuthCtx {
 
 const Ctx = createContext<AuthCtx>({ user: null, token: null, login: () => {}, logout: () => {}, loading: true });
 
+// Single global provider — keeps auth state alive across page navigations
+let globalToken: string | null = null;
+let globalUser: User | null = null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(globalUser);
+  const [token, setToken] = useState<string | null>(globalToken);
+  const [loading, setLoading] = useState(!globalToken);
 
   useEffect(() => {
+    if (globalToken) { setLoading(false); return; }
     const t = localStorage.getItem('token');
     const u = localStorage.getItem('user');
-    if (t && u) { setToken(t); setUser(JSON.parse(u)); }
+    if (t && u) {
+      const parsed = JSON.parse(u);
+      globalToken = t;
+      globalUser = parsed;
+      setToken(t);
+      setUser(parsed);
+    }
     setLoading(false);
   }, []);
 
   const login = (t: string, u: User) => {
-    setToken(t); setUser(u);
+    globalToken = t;
+    globalUser = u;
+    setToken(t);
+    setUser(u);
     localStorage.setItem('token', t);
     localStorage.setItem('user', JSON.stringify(u));
   };
 
   const logout = () => {
-    setToken(null); setUser(null);
+    globalToken = null;
+    globalUser = null;
+    setToken(null);
+    setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
