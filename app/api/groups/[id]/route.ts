@@ -9,13 +9,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const sql = getDb();
   const groupId = Number(params.id);
 
-  const isMember = await sql`
+  const memberCheck = await sql`
     SELECT 1 FROM group_members WHERE group_id = ${groupId} AND user_id = ${user.userId}
   `;
-  if (!isMember.length) return NextResponse.json({ error: 'Not a member' }, { status: 403 });
+  if (!memberCheck.length) return NextResponse.json({ error: 'Not a member' }, { status: 403 });
 
-  const [group] = await sql`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ${groupId}`;
-  if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+  const groups = await sql`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ${groupId}`;
+  if (!groups.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const group = groups[0];
 
   const members = await sql`
     SELECT u.id, u.name, u.email
@@ -26,27 +27,34 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   `;
 
   const expenses = await sql`
-    SELECT
-      e.id,
-      e.title,
-      e.amount,
-      e.paid_by,
-      e.split_type,
-      e.created_at,
-      u.name as paid_by_name
+    SELECT e.id, e.title, e.amount::float as amount, e.paid_by, e.split_type, e.created_at, u.name as paid_by_name
     FROM expenses e
     JOIN users u ON u.id = e.paid_by
     WHERE e.group_id = ${groupId}
     ORDER BY e.created_at DESC
   `;
 
+  const membersArr = members.map((m: Record<string, unknown>) => ({
+    id: Number(m.id), name: String(m.name), email: String(m.email),
+  }));
+
+  const expensesArr = expenses.map((e: Record<string, unknown>) => ({
+    id: Number(e.id),
+    title: String(e.title),
+    amount: Number(e.amount),
+    paid_by: Number(e.paid_by),
+    paid_by_name: String(e.paid_by_name),
+    split_type: String(e.split_type),
+    created_at: String(e.created_at),
+  }));
+
   return NextResponse.json({
-    id: group.id,
-    name: group.name,
-    description: group.description,
-    created_by: group.created_by,
-    created_at: group.created_at,
-    members: Array.from(members),
-    expenses: Array.from(expenses),
+    id: Number(group.id),
+    name: String(group.name),
+    description: String(group.description || ''),
+    created_by: Number(group.created_by),
+    created_at: String(group.created_at),
+    members: membersArr,
+    expenses: expensesArr,
   });
 }

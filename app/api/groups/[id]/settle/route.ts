@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { sendSettlementNotification } from '@/lib/email';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const user = getAuthUser(req);
@@ -9,7 +8,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const sql = getDb();
   const groupId = Number(params.id);
-  const { toUserId, amount } = await req.json();
+  const body = await req.json();
+  const toUserId = Number(body.toUserId);
+  const amount = Number(body.amount);
 
   if (!toUserId || !amount) return NextResponse.json({ error: 'toUserId and amount required' }, { status: 400 });
 
@@ -17,18 +18,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     INSERT INTO settlements (group_id, paid_by, paid_to, amount)
     VALUES (${groupId}, ${user.userId}, ${toUserId}, ${amount})
   `;
-
-  const [toUser] = await sql`SELECT name, email FROM users WHERE id = ${toUserId}`;
-  const [fromUser] = await sql`SELECT name FROM users WHERE id = ${user.userId}`;
-  const [group] = await sql`SELECT name FROM groups WHERE id = ${groupId}`;
-
-  await sendSettlementNotification({
-    toEmail: toUser.email,
-    toName: toUser.name,
-    fromName: fromUser.name,
-    amount: Number(amount),
-    groupName: group.name,
-  }).catch(() => {});
 
   return NextResponse.json({ success: true });
 }
