@@ -14,7 +14,8 @@ interface Group   { id: number; name: string; description: string; members: Memb
 function GroupDetail() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
-  const { id: gid } = useParams() as { id: string };
+  const params = useParams();
+  const gid = Array.isArray(params.id) ? params.id[0] : (params.id as string);
 
   const [group,    setGroup]   = useState<Group | null>(null);
   const [balances, setBalances]= useState<Balance[]>([]);
@@ -91,6 +92,8 @@ function GroupDetail() {
   }
 
   async function addExpense(e: React.FormEvent) {
+    console.log(`Adding expense: title="${expTitle}" amount=${expAmt} gid=${gid} token=${!!localStorage.getItem("token")}`);
+    alert(`Sending: ${expTitle} ₹${expAmt} to group ${gid}`);
     e.preventDefault();
     setErr(''); setBusy(true);
     try {
