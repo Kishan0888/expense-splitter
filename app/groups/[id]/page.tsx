@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/components/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -19,6 +19,8 @@ function GroupPage() {
   const router = useRouter();
   const params = useParams();
   const groupId = params.id as string;
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
   const [group, setGroup] = useState<Group | null>(null);
   const [balances, setBalances] = useState<Balance[]>([]);
@@ -35,59 +37,70 @@ function GroupPage() {
   const [memberError, setMemberError] = useState('');
   const [memberSuccess, setMemberSuccess] = useState('');
 
-  const fetchGroup = useCallback(async () => {
-    if (!token) return;
-    const [g, b] = await Promise.all([
-      apiFetch(`/groups/${groupId}`, token),
-      apiFetch(`/groups/${groupId}/balances`, token),
-    ]);
-    setGroup(g);
-    setBalances(b.balances);
-    setTransactions(b.transactions);
-  }, [token, groupId]);
+  const fetchAll = useCallback(async (tok: string | null) => {
+    if (!tok) return;
+    try {
+      const [g, b] = await Promise.all([
+        apiFetch(`/groups/${groupId}`, tok),
+        apiFetch(`/groups/${groupId}/balances`, tok),
+      ]);
+      setGroup({ ...g, members: g.members || [], expenses: g.expenses || [] });
+      setBalances(b.balances || []);
+      setTransactions(b.transactions || []);
+    } catch (e) {
+      console.error('fetchAll error', e);
+    }
+  }, [groupId]);
 
   useEffect(() => { if (!loading && !user) router.push('/login'); }, [user, loading, router]);
-  useEffect(() => { fetchGroup(); }, [fetchGroup]);
+  useEffect(() => { if (token) fetchAll(token); }, [token, fetchAll]);
 
   const addExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(''); setAdding(true);
+    setError('');
+    setAdding(true);
     try {
-      await apiFetch(`/groups/${groupId}/expenses`, token, {
+      await apiFetch(`/groups/${groupId}/expenses`, tokenRef.current, {
         method: 'POST',
-        body: JSON.stringify({ title: form.title, amount: Number(form.amount), splitType: form.splitType }),
+        body: JSON.stringify({
+          title: form.title,
+          amount: Number(form.amount),
+          splitType: form.splitType,
+        }),
       });
       setShowAdd(false);
       setForm({ title: '', amount: '', splitType: 'equal' });
-      await fetchGroup();
+      await fetchAll(tokenRef.current);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to add expense');
-    } finally { setAdding(false); }
+    } finally {
+      setAdding(false);
+    }
   };
 
   const addMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setMemberError(''); setMemberSuccess(''); setAddingMember(true);
     try {
-      await apiFetch(`/groups/${groupId}/members`, token, {
+      await apiFetch(`/groups/${groupId}/members`, tokenRef.current, {
         method: 'POST',
         body: JSON.stringify({ email: memberEmail.trim() }),
       });
       setMemberSuccess(`${memberEmail.trim()} added successfully!`);
       setMemberEmail('');
-      await fetchGroup();
+      await fetchAll(tokenRef.current);
     } catch (err: unknown) {
       setMemberError(err instanceof Error ? err.message : 'Failed to add member');
     } finally { setAddingMember(false); }
   };
 
   const settle = async (txn: Transaction) => {
-    await apiFetch(`/groups/${groupId}/settle`, token, {
+    await apiFetch(`/groups/${groupId}/settle`, tokenRef.current, {
       method: 'POST',
       body: JSON.stringify({ toUserId: txn.toUserId, amount: txn.amount }),
     });
     setSettling(null);
-    await fetchGroup();
+    await fetchAll(tokenRef.current);
   };
 
   const memberCount = group?.members?.length || 0;
@@ -104,7 +117,11 @@ function GroupPage() {
   );
 
   const tabs: Tab[] = ['expenses', 'balances', 'members'];
-  const tabIcons = { expenses: <Receipt size={14} />, balances: <TrendingDown size={14} />, members: <UserPlus size={14} /> };
+  const tabIcons = {
+    expenses: <Receipt size={14} />,
+    balances: <TrendingDown size={14} />,
+    members: <UserPlus size={14} />
+  };
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -133,25 +150,24 @@ function GroupPage() {
           </div>
         </div>
 
-        {myBalance && (
-          <div className="card" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, background: myBalance.netBalance >= 0 ? 'rgba(74,222,128,0.05)' : 'rgba(239,68,68,0.05)', borderColor: myBalance.netBalance >= 0 ? 'rgba(74,222,128,0.2)' : 'rgba(239,68,68,0.2)' }}>
+        {myBalance !== undefined && (
+          <div className="card" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, background: (myBalance?.netBalance ?? 0) >= 0 ? 'rgba(74,222,128,0.05)' : 'rgba(239,68,68,0.05)', borderColor: (myBalance?.netBalance ?? 0) >= 0 ? 'rgba(74,222,128,0.2)' : 'rgba(239,68,68,0.2)' }}>
             <div>
               <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, marginBottom: 4 }}>YOUR BALANCE</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: myBalance.netBalance >= 0 ? 'var(--green)' : '#f87171', fontFamily: 'var(--font-jetbrains)' }}>
-                {myBalance.netBalance >= 0 ? '+' : ''}₹{Math.abs(myBalance.netBalance).toFixed(2)}
+              <div style={{ fontSize: 26, fontWeight: 800, color: (myBalance?.netBalance ?? 0) >= 0 ? 'var(--green)' : '#f87171', fontFamily: 'var(--font-jetbrains)' }}>
+                {(myBalance?.netBalance ?? 0) >= 0 ? '+' : ''}₹{Math.abs(myBalance?.netBalance ?? 0).toFixed(2)}
               </div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
-                {myBalance.netBalance > 0.01 ? 'You are owed this amount' : myBalance.netBalance < -0.01 ? 'You owe this amount' : 'All settled up'}
+                {(myBalance?.netBalance ?? 0) > 0.01 ? 'You are owed this amount' : (myBalance?.netBalance ?? 0) < -0.01 ? 'You owe this amount' : 'All settled up'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>{memberCount} member{memberCount !== 1 ? 's' : ''}</span>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{memberCount} member{memberCount !== 1 ? 's' : ''}</span>
               <button className="btn-primary" onClick={() => setShowAdd(true)}><Plus size={16} /> Add expense</button>
             </div>
           </div>
         )}
 
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
           {tabs.map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
@@ -166,10 +182,9 @@ function GroupPage() {
           ))}
         </div>
 
-        {/* Expenses Tab */}
         {tab === 'expenses' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {group.expenses.length === 0 ? (
+            {!group.expenses || group.expenses.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: '50px 24px' }}>
                 <Receipt size={36} color="var(--muted)" style={{ margin: '0 auto 12px' }} />
                 <p style={{ fontWeight: 600 }}>No expenses yet</p>
@@ -181,7 +196,7 @@ function GroupPage() {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{exp.title}</div>
                   <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
-                    Paid by <span style={{ color: 'var(--text)', fontWeight: 500 }}>{exp.paid_by === user?.id ? 'you' : exp.paid_by_name}</span>
+                    Paid by <span style={{ color: 'var(--text)', fontWeight: 500 }}>{Number(exp.paid_by) === user?.id ? 'you' : exp.paid_by_name}</span>
                     {' · '}{new Date(exp.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </div>
                 </div>
@@ -193,12 +208,13 @@ function GroupPage() {
           </div>
         )}
 
-        {/* Balances Tab */}
         {tab === 'balances' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'grid', gap: 10 }}>
               <p style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net balances</p>
-              {balances.map(b => (
+              {balances.length === 0 ? (
+                <p style={{ color: 'var(--muted)', fontSize: 14 }}>No balance data yet. Add an expense first.</p>
+              ) : balances.map(b => (
                 <div key={b.userId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
@@ -235,11 +251,11 @@ function GroupPage() {
                   ))}
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>
-                  Debt simplification reduced this to {transactions.length} optimal transaction{transactions.length !== 1 ? 's' : ''}
+                  Debt simplification algorithm reduced this to {transactions.length} optimal transaction{transactions.length !== 1 ? 's' : ''}
                 </p>
               </div>
             )}
-            {transactions.length === 0 && (
+            {transactions.length === 0 && balances.length > 0 && (
               <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
                 <CheckCircle size={36} color="var(--green)" style={{ margin: '0 auto 12px' }} />
                 <p style={{ fontWeight: 700 }}>All settled up!</p>
@@ -249,34 +265,19 @@ function GroupPage() {
           </div>
         )}
 
-        {/* Members Tab */}
         {tab === 'members' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {showAddMember && (
               <div className="card" style={{ borderColor: 'rgba(74,222,128,0.3)' }}>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Add a member by email</p>
-                <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-                  The person must already have a SplitEase account with that email address.
-                </p>
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Add a member by email</p>
+                <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>They must already have a SplitEase account.</p>
                 <form onSubmit={addMember} style={{ display: 'flex', gap: 10 }}>
                   <input className="input" type="email" placeholder="friend@example.com" value={memberEmail}
                     onChange={e => { setMemberEmail(e.target.value); setMemberError(''); setMemberSuccess(''); }} required style={{ flex: 1 }} />
-                  <button className="btn-primary" type="submit" disabled={addingMember}>
-                    {addingMember ? '…' : 'Add'}
-                  </button>
+                  <button className="btn-primary" type="submit" disabled={addingMember}>{addingMember ? '…' : 'Add'}</button>
                 </form>
-                {memberError && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-                    <AlertCircle size={14} color="#f87171" />
-                    <p style={{ fontSize: 13, color: '#f87171' }}>{memberError}</p>
-                  </div>
-                )}
-                {memberSuccess && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-                    <CheckCircle size={14} color="var(--green)" />
-                    <p style={{ fontSize: 13, color: 'var(--green)' }}>{memberSuccess}</p>
-                  </div>
-                )}
+                {memberError && <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}><AlertCircle size={14} color="#f87171" /><p style={{ fontSize: 13, color: '#f87171' }}>{memberError}</p></div>}
+                {memberSuccess && <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}><CheckCircle size={14} color="var(--green)" /><p style={{ fontSize: 13, color: 'var(--green)' }}>{memberSuccess}</p></div>}
               </div>
             )}
             {group.members.map((m: Member) => (
@@ -299,7 +300,6 @@ function GroupPage() {
         )}
       </div>
 
-      {/* Add Expense Modal */}
       {showAdd && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="card animate-in" style={{ width: '100%', maxWidth: 420 }}>
@@ -322,12 +322,10 @@ function GroupPage() {
                   <option value="equal">Split equally among {memberCount} member{memberCount !== 1 ? 's' : ''}</option>
                 </select>
               </div>
-              {memberCount > 0 && (
-                <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Each person pays</div>
-                  <div style={{ fontFamily: 'var(--font-jetbrains)', fontWeight: 700, color: 'var(--green)', fontSize: 18 }}>₹{perPerson}</div>
-                </div>
-              )}
+              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Each person pays</div>
+                <div style={{ fontFamily: 'var(--font-jetbrains)', fontWeight: 700, color: 'var(--green)', fontSize: 18 }}>₹{perPerson}</div>
+              </div>
               {error && <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p>}
               <button className="btn-primary" type="submit" disabled={adding} style={{ justifyContent: 'center' }}>
                 {adding ? 'Adding…' : 'Add expense'}
@@ -337,7 +335,6 @@ function GroupPage() {
         </div>
       )}
 
-      {/* Settle Modal */}
       {settling && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div className="card animate-in" style={{ width: '100%', maxWidth: 380, textAlign: 'center' }}>
