@@ -95,8 +95,10 @@ export async function computeGroupBalances(
     const paidBy = Number(s.paid_by);
     const paidTo = Number(s.paid_to);
     const amount = Number(s.amount);
-    if (balanceMap[paidBy] !== undefined) balanceMap[paidBy].netBalance -= amount;
-    if (balanceMap[paidTo] !== undefined) balanceMap[paidTo].netBalance += amount;
+    // paidBy paid money OUT so their debt reduces (netBalance goes toward 0 from negative)
+    if (balanceMap[paidBy] !== undefined) balanceMap[paidBy].netBalance += amount;
+    // paidTo received money so their credit reduces (netBalance goes toward 0 from positive)
+    if (balanceMap[paidTo] !== undefined) balanceMap[paidTo].netBalance -= amount;
   }
 
   return Object.values(balanceMap);
