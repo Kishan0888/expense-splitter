@@ -91,12 +91,21 @@ function GroupDetail() {
     return data;
   }
 
-  async function addExpense(e: React.FormEvent) {
-    console.log(`Adding expense: title="${expTitle}" amount=${expAmt} gid=${gid} token=${!!localStorage.getItem("token")}`);
-    e.preventDefault();
+  async function handleAddExpense() {
+    if (!expTitle.trim() || !expAmt || Number(expAmt) <= 0) {
+      setErr('Please fill in title and amount');
+      return;
+    }
     setErr(''); setBusy(true);
     try {
-      await postJSON(`/groups/${gid}/expenses`, { title: expTitle, amount: Number(expAmt) });
+      const tok = localStorage.getItem('token')!;
+      const res = await fetch(`/api/groups/${gid}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+        body: JSON.stringify({ title: expTitle.trim(), amount: Number(expAmt) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add expense');
       setShowAdd(false); setExpTitle(''); setExpAmt('');
       await fetchData();
     } catch(e: unknown) { setErr(e instanceof Error ? e.message : 'Failed'); }
@@ -357,14 +366,19 @@ function GroupDetail() {
               <h2 style={{ fontWeight:800, fontSize:20 }}>Add expense</h2>
               <button className="btn-ghost" style={{ padding:'5px 9px' }} onClick={() => { setShowAdd(false); setErr(''); }}><X size={16}/></button>
             </div>
-            <form onSubmit={addExpense} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
               <div>
                 <label className="label">What was it for?</label>
-                <input className="input" placeholder="Dinner, hotel, fuel…" value={expTitle} onChange={e => setExpTitle(e.target.value)} required autoFocus/>
+                <input className="input" placeholder="Dinner, hotel, fuel…" value={expTitle}
+                  onChange={e => setExpTitle(e.target.value)}
+                  onKeyDown={e => { if(e.key==='Enter' && expTitle && expAmt) handleAddExpense(); }}
+                  autoFocus/>
               </div>
               <div>
                 <label className="label">Total amount (₹)</label>
-                <input className="input" type="number" min="1" step="0.01" placeholder="0.00" value={expAmt} onChange={e => setExpAmt(e.target.value)} required/>
+                <input className="input" type="number" min="1" step="0.01" placeholder="0.00" value={expAmt}
+                  onChange={e => setExpAmt(e.target.value)}
+                  onKeyDown={e => { if(e.key==='Enter' && expTitle && expAmt) handleAddExpense(); }}/>
               </div>
               <div style={{ background:'var(--surface2)', borderRadius:10, padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <div>
@@ -374,10 +388,12 @@ function GroupDetail() {
                 <p style={{ fontFamily:'var(--font-jetbrains)', fontWeight:800, fontSize:24, color:'var(--green)' }}>₹{perPerson}</p>
               </div>
               {err && <p style={{ color:'#f87171', fontSize:13 }}>{err}</p>}
-              <button className="btn-primary" type="submit" disabled={busy} style={{ justifyContent:'center', padding:'13px', fontSize:15 }}>
+              <button className="btn-primary" disabled={busy || !expTitle || !expAmt}
+                onClick={handleAddExpense}
+                style={{ justifyContent:'center', padding:'13px', fontSize:15 }}>
                 {busy ? 'Adding…' : 'Add expense'}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
