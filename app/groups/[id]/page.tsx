@@ -168,30 +168,30 @@ function GroupDetail() {
     <div style={{ minHeight:'100vh' }}>
       <Navbar />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
-      <div style={{ maxWidth:820, margin:'0 auto', padding:'28px 20px' }}>
+      <div style={{ maxWidth:820, margin:'0 auto', padding:'16px 14px' }}>
 
         {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
-          <button className="btn-ghost" style={{ fontSize:13, padding:'6px 12px' }} onClick={() => router.push('/dashboard')}>
-            <ChevronLeft size={14}/> Dashboard
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
+          <button className="btn-ghost" style={{ fontSize:12, padding:'5px 10px' }} onClick={() => router.push('/dashboard')}>
+            <ChevronLeft size={13}/> Dashboard
           </button>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
             {syncing
-              ? <RefreshCw size={13} color="var(--green)" style={{ animation:'spin 0.8s linear infinite' }}/>
-              : <span style={{ fontSize:11, color:'var(--muted)' }}>Updated {lastSync}</span>
+              ? <RefreshCw size={12} color="var(--green)" style={{ animation:'spin 0.8s linear infinite' }}/>
+              : <span style={{ fontSize:10, color:'var(--muted)', whiteSpace:'nowrap' }}>Updated {lastSync}</span>
             }
-            <button className="btn-ghost" style={{ padding:'5px 10px', fontSize:12 }} onClick={fetchData}>
-              <RefreshCw size={12}/> Refresh
+            <button className="btn-ghost" style={{ padding:'4px 8px', fontSize:11, whiteSpace:'nowrap' }} onClick={fetchData}>
+              <RefreshCw size={11}/> Refresh
             </button>
             <button onClick={() => setShowDelete(true)}
-              style={{ padding:'5px 10px', fontSize:12, background:'transparent', border:'1px solid rgba(239,68,68,0.4)', borderRadius:8, color:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
-              <Trash2 size={12}/> Delete group
+              style={{ padding:'4px 8px', fontSize:11, background:'transparent', border:'1px solid rgba(239,68,68,0.4)', borderRadius:8, color:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
+              <Trash2 size={11}/> Delete
             </button>
           </div>
         </div>
 
         {/* Title */}
-        <h1 style={{ fontSize:30, fontWeight:800, letterSpacing:'-1px', marginBottom:10 }}>{group.name}</h1>
+        <h1 style={{ fontSize:'clamp(22px, 6vw, 30px)', fontWeight:800, letterSpacing:'-0.5px', marginBottom:8 }}>{group.name}</h1>
         {group.description && <p style={{ color:'var(--muted)', fontSize:14, marginBottom:14 }}>{group.description}</p>}
 
         {/* Members row */}
@@ -211,13 +211,13 @@ function GroupDetail() {
         </div>
 
         {/* Balance card */}
-        <div className="card" style={{ marginBottom:24, padding:'20px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:14,
+        <div className="card" style={{ marginBottom:16, padding:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12,
           borderColor: myBal > 0.01 ? 'rgba(74,222,128,0.35)' : myBal < -0.01 ? 'rgba(248,113,113,0.35)' : 'var(--border)',
           background:  myBal > 0.01 ? 'rgba(74,222,128,0.05)' : myBal < -0.01 ? 'rgba(248,113,113,0.05)' : 'var(--surface)',
         }}>
           <div>
             <p style={{ fontSize:11, fontWeight:600, color:'var(--muted)', letterSpacing:'0.5px', marginBottom:6 }}>YOUR BALANCE</p>
-            <p style={{ fontSize:30, fontWeight:800, fontFamily:'var(--font-jetbrains)', color:balColor }}>
+            <p style={{ fontSize:'clamp(22px, 6vw, 30px)', fontWeight:800, fontFamily:'var(--font-jetbrains)', color:balColor }}>
               {myBal > 0 ? '+' : ''}₹{Math.abs(myBal).toFixed(2)}
             </p>
             <p style={{ fontSize:13, color:'var(--muted)', marginTop:5 }}>
