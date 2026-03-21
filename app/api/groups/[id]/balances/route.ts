@@ -18,5 +18,21 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const balances = await computeGroupBalances(sql, groupId);
   const transactions = simplifyDebts(balances);
 
-  return NextResponse.json({ balances, transactions });
+  return NextResponse.json({
+    balances: balances.map(b => ({
+      userId: b.userId,
+      name: b.name,
+      email: b.email,
+      netBalance: b.netBalance,
+    })),
+    transactions: transactions.map(t => ({
+      fromUserId: t.fromUserId,
+      fromName: t.fromName,
+      fromEmail: t.fromEmail,
+      toUserId: t.toUserId,
+      toName: t.toName,
+      toEmail: t.toEmail,
+      amount: t.amount,
+    })),
+  });
 }

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   `;
   if (!isMember.length) return NextResponse.json({ error: 'Not a member' }, { status: 403 });
 
-  const [group] = await sql`SELECT * FROM groups WHERE id = ${groupId}`;
+  const [group] = await sql`SELECT id, name, description, created_by, created_at FROM groups WHERE id = ${groupId}`;
   if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
   const members = await sql`
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   `;
 
   const expenses = await sql`
-    SELECT 
+    SELECT
       e.id,
       e.title,
       e.amount,
@@ -40,5 +40,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     ORDER BY e.created_at DESC
   `;
 
-  return NextResponse.json({ ...group, members, expenses });
+  return NextResponse.json({
+    id: group.id,
+    name: group.name,
+    description: group.description,
+    created_by: group.created_by,
+    created_at: group.created_at,
+    members: Array.from(members),
+    expenses: Array.from(expenses),
+  });
 }
