@@ -93,7 +93,6 @@ function GroupDetail() {
 
   async function addExpense(e: React.FormEvent) {
     console.log(`Adding expense: title="${expTitle}" amount=${expAmt} gid=${gid} token=${!!localStorage.getItem("token")}`);
-    alert(`Sending: ${expTitle} ₹${expAmt} to group ${gid}`);
     e.preventDefault();
     setErr(''); setBusy(true);
     try {

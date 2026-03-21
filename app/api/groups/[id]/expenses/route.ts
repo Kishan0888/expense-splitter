@@ -16,15 +16,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
     if (!amount || amount <= 0) return NextResponse.json({ error: 'Valid amount required' }, { status: 400 });
 
-    // Verify user is a member
-    const memberCheck = await sql`
-      SELECT 1 FROM group_members WHERE group_id = ${groupId} AND user_id = ${user.userId}
-    `;
-    if (!memberCheck.length) return NextResponse.json({ error: 'Not a member of this group' }, { status: 403 });
-
-    // Get all members
+    // Get all member USER IDs (not group_members.id!)
     const members = await sql`
-      SELECT id FROM group_members WHERE group_id = ${groupId}
+      SELECT user_id FROM group_members WHERE group_id = ${groupId}
     `;
     if (!members.length) return NextResponse.json({ error: 'Group has no members' }, { status: 404 });
 
@@ -39,22 +33,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     `;
     const expenseId = Number(inserted[0].id);
 
-    // Insert splits for ALL members
+    // Insert splits using user_id from group_members
     for (const m of members) {
       await sql`
         INSERT INTO expense_splits (expense_id, user_id, amount)
-        VALUES (${expenseId}, ${Number(m.id)}, ${sharePerPerson})
+        VALUES (${expenseId}, ${Number(m.user_id)}, ${sharePerPerson})
       `;
     }
 
-    console.log(`Expense ${expenseId} created in group ${groupId} by user ${user.userId}, ${memberCount} splits of ${sharePerPerson}`);
-
-    return NextResponse.json({
-      success: true,
-      expenseId,
-      memberCount,
-      sharePerPerson,
-    }, { status: 201 });
+    return NextResponse.json({ success: true, expenseId }, { status: 201 });
 
   } catch (err) {
     console.error('POST /expenses error:', err);
@@ -71,10 +58,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const groupId = Number(params.id);
 
     const expenses = await sql`
-      SELECT DISTINCT
-        e.id, e.title, e.amount::float AS amount,
-        e.paid_by, e.split_type, e.created_at,
-        u.name AS paid_by_name
+      SELECT DISTINCT e.id, e.title, e.amount::float AS amount,
+        e.paid_by, e.split_type, e.created_at, u.name AS paid_by_name
       FROM expenses e
       JOIN users u ON u.id = e.paid_by
       WHERE e.group_id = ${groupId}
