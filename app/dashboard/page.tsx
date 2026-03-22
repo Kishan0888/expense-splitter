@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import NotificationButton from '@/components/NotificationButton';
 import { useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/components/AuthContext';
 import Navbar from '@/components/Navbar';
