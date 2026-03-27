@@ -1,17 +1,25 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
+const BASE_URL = 'https://expense-splitter-kishanj1093-1933s-projects.vercel.app';
+
 export const metadata: Metadata = {
   title: 'SplitEase by Kishan — Smart Expense Splitting',
   description: 'Split expenses with friends using a debt simplification algorithm. Real-time sync, Web Push Notifications, PWA. Built with Next.js 14 + PostgreSQL.',
   manifest: '/manifest.json',
   verification: { google: 'R4KoHYqevfVR0bVuWc2AGTtUMwhF-iCkMcSY1-rITDI' },
+  metadataBase: new URL(BASE_URL),
   openGraph: {
     title: 'SplitEase by Kishan — Smart Expense Splitting',
     description: 'Debt simplification algorithm reduces group settlements to the mathematical minimum. Next.js 14 + PostgreSQL + Web Push + PWA.',
-    url: 'https://expense-splitter-kishanj1093-1933s-projects.vercel.app',
+    url: BASE_URL,
     siteName: 'SplitEase by Kishan',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'SplitEase by Kishan' }],
+    images: [{
+      url: `${BASE_URL}/og-image.png`,
+      width: 1200,
+      height: 630,
+      alt: 'SplitEase by Kishan — Smart Expense Splitting App',
+    }],
     locale: 'en_IN',
     type: 'website',
   },
@@ -19,7 +27,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SplitEase by Kishan — Smart Expense Splitting',
     description: 'Split expenses with friends. Debt simplification algorithm. Next.js 14 + PostgreSQL + PWA.',
-    images: ['/og-image.png'],
+    images: [`${BASE_URL}/og-image.png`],
   },
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'SplitEase' },
 };
@@ -32,6 +40,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
+        <meta property="og:image" content={`${BASE_URL}/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:image" content={`${BASE_URL}/og-image.png`} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#22c55e" />
