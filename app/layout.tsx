@@ -15,10 +15,10 @@ export const metadata: Metadata = {
     url: BASE_URL,
     siteName: 'SplitEase by Kishan',
     images: [{
-      url: `${BASE_URL}/og-image.png`,
+      url: `${BASE_URL}/api/og`,
       width: 1200,
       height: 630,
-      alt: 'SplitEase by Kishan — Smart Expense Splitting App',
+      alt: 'SplitEase by Kishan',
     }],
     locale: 'en_IN',
     type: 'website',
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SplitEase by Kishan — Smart Expense Splitting',
     description: 'Split expenses with friends. Debt simplification algorithm. Next.js 14 + PostgreSQL + PWA.',
-    images: [`${BASE_URL}/og-image.png`],
+    images: [`${BASE_URL}/api/og`],
   },
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'SplitEase' },
 };
@@ -40,12 +40,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
-        <meta property="og:image" content={`${BASE_URL}/og-image.png`} />
+        <meta property="og:image" content={`${BASE_URL}/api/og`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta name="twitter:image" content={`${BASE_URL}/og-image.png`} />
+        <meta name="twitter:image" content={`${BASE_URL}/api/og`} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#22c55e" />
       </head>
       <body>
